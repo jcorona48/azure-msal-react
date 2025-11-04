@@ -6,6 +6,18 @@ export interface ApiServiceOptions {
     token?: string;
 }
 
+export type ResponseType =
+    | "json"
+    | "blob"
+    | "text"
+    | "arrayBuffer"
+    | "formData"
+    | "bytes";
+
+export interface RequestConfig {
+    responseType?: ResponseType;
+}
+
 export class ApiService {
     protected baseURL: string =
         import.meta.env.VITE_API_URL || "https://graph.microsoft.com";
@@ -38,7 +50,9 @@ export class ApiService {
         path: string,
         body?: unknown,
         customHeaders?: Record<string, string>,
-        config?: { blobResponse: boolean }
+        config: RequestConfig = {
+            responseType: "json",
+        }
     ): Promise<T> {
         const url = this.buildUrl(path);
         const headers = { ...this.headers, ...(customHeaders || {}) };
@@ -57,19 +71,40 @@ export class ApiService {
         }
 
         try {
-            if (config?.blobResponse) {
-                return (await response.blob()) as unknown as T;
-            }
-            return (await response.json()) as T;
+            return await this.parseResponse<T>(
+                response,
+                config.responseType || "json"
+            );
         } catch {
             return {} as T;
+        }
+    }
+
+    protected parseResponse<T>(
+        response: Response,
+        responseType: ResponseType
+    ): Promise<T> {
+        switch (responseType) {
+            case "blob":
+                return response.blob() as unknown as Promise<T>;
+            case "text":
+                return response.text() as unknown as Promise<T>;
+            case "arrayBuffer":
+                return response.arrayBuffer() as unknown as Promise<T>;
+            case "formData":
+                return response.formData() as unknown as Promise<T>;
+            case "bytes":
+                return response.bytes() as unknown as Promise<T>;
+            case "json":
+            default:
+                return response.json() as Promise<T>;
         }
     }
 
     protected get<T>(
         path: string,
         headers?: Record<string, string>,
-        config?: { blobResponse: boolean }
+        config?: RequestConfig
     ): Promise<T> {
         return this.request<T>("GET", path, undefined, headers, config);
     }
@@ -77,31 +112,35 @@ export class ApiService {
     protected post<T, Data = unknown>(
         path: string,
         data?: Data,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        config?: RequestConfig
     ): Promise<T> {
-        return this.request<T>("POST", path, data, headers);
+        return this.request<T>("POST", path, data, headers, config);
     }
 
     protected put<T, Data>(
         path: string,
         data?: Data,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        config?: RequestConfig
     ): Promise<T> {
-        return this.request<T>("PUT", path, data, headers);
+        return this.request<T>("PUT", path, data, headers, config);
     }
 
     protected patch<T, Data>(
         path: string,
         data?: Data,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        config?: RequestConfig
     ): Promise<T> {
-        return this.request<T>("PATCH", path, data, headers);
+        return this.request<T>("PATCH", path, data, headers, config);
     }
 
     protected delete<T>(
         path: string,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        config?: RequestConfig
     ): Promise<T> {
-        return this.request<T>("DELETE", path, undefined, headers);
+        return this.request<T>("DELETE", path, undefined, headers, config);
     }
 }

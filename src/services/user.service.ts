@@ -16,7 +16,7 @@ export class UserService extends ApiService {
     public async getUserPhoto(userName: string = "me"): Promise<string | null> {
         try {
             const blob = await this.get<Blob>("/photo/$value", undefined, {
-                blobResponse: true,
+                responseType: "blob",
             });
             return URL.createObjectURL(blob);
         } catch (error) {
